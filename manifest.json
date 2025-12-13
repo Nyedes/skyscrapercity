@@ -1,0 +1,28 @@
+{
+    "manifest_version": 3,
+    "name": "Skyscraper City Forum Tab Opener",
+    "version": "1.0",
+    "description": "Automatically opens unread subforum threads from Skyscraper City Forum in new background tabs.",
+    "permissions": ["tabs", "storage", "scripting"],
+    "host_permissions": ["https://www.skyscrapercity.com/*"],
+    "action": {
+        "default_popup": "popup.html",
+        "default_icon": "icons/icon.svg"
+    },
+    "background": {
+        "scripts": ["background.js"]
+    },
+    "content_scripts": [
+        {
+            "matches": ["https://www.skyscrapercity.com/forums/*"],
+            "js": ["content.js"]
+        }
+    ],
+    "options_page": "options.html",
+    "browser_specific_settings": {
+        "gecko": {
+            "id": "{a0e360f2-985a-4933-911a-115b28d0c644}",
+            "strict_min_version": "109.0"
+        }
+    }
+}

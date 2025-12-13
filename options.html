@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Skyscraper City Forum Opener Options</title>
+    <style>
+        body { font-family: Arial, sans-serif; padding: 20px; max-width: 800px; margin: auto; }
+        h1, h2 { border-bottom: 1px solid #ccc; padding-bottom: 5px; }
+        label { display: block; margin-bottom: 5px; font-weight: bold; }
+        input[type="text"], textarea { width: 100%; padding: 8px; margin-bottom: 10px; box-sizing: border-box; }
+        textarea { height: 150px; }
+        button { padding: 10px 20px; cursor: pointer; }
+        #status { margin-top: 10px; color: green; font-weight: bold; }
+        .rule { border: 1px solid #ddd; padding: 15px; margin-bottom: 15px; border-radius: 5px; }
+        .rule-page-url { font-weight: bold; margin-bottom: 10px; }
+        .rule-subforums { white-space: pre-wrap; word-wrap: break-word; background-color: #f9f9f9; padding: 10px; border-radius: 3px; }
+        .delete-rule { float: right; color: red; background: none; border: none; cursor: pointer; font-size: 16px; }
+    </style>
+    <script src="options.js"></script>
+</head>
+<body>
+    <h1>Extension Options</h1>
+
+    <h2>Subforum Rules</h2>
+    <p>Use these rules for pages that list multiple subforums.</p>
+    <div id="add-subforum-rule-form" class="rule-form">
+        <label for="subforumPageUrl">Forum Page URL:</label>
+        <input type="text" id="subforumPageUrl" placeholder="e.g., https://www.skyscrapercity.com/forums/ozscrapers.65/">
+        
+        <label for="customSubforums">Subforum URLs to Open (one per line):</label>
+        <textarea id="customSubforums" placeholder="Enter the full URLs of the subforums you want to open for the page above."></textarea>
+        
+        <button id="addSubforumRuleButton">Add Subforum Rule</button>
+    </div>
+
+    <h3>Saved Subforum Rules</h3>
+    <div id="subforumRulesList">
+        <!-- Subforum rules will be dynamically inserted here -->
+    </div>
+
+    <hr>
+
+    <h2>Thread Rules</h2>
+    <p>Use these rules for pages that list multiple threads within a single subforum.</p>
+    <div id="add-thread-rule-form" class="rule-form">
+        <label for="threadPageUrl">Subforum Page URL:</label>
+        <input type="text" id="threadPageUrl" placeholder="e.g., https://www.skyscrapercity.com/forums/sydney-cbd.4057/">
+
+        <label for="includeKeywords">Include threads with these keywords (comma-separated):</label>
+        <input type="text" id="includeKeywords" placeholder="e.g., proposed, construction">
+
+        <label for="excludeKeywords">Exclude threads with these keywords (comma-separated):</label>
+        <input type="text" id="excludeKeywords" placeholder="e.g., completed, discussion">
+        
+        <button id="addThreadRuleButton">Add Thread Rule</button>
+    </div>
+
+    <h3>Saved Thread Rules</h3>
+    <div id="threadRulesList">
+        <!-- Thread rules will be dynamically inserted here -->
+    </div>
+
+    <div id="status" style="margin-top: 20px;"></div>
+</body>
+</html>
