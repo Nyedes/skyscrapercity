@@ -10,8 +10,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // --- Thread Rule Elements ---
     const threadPageUrlInput = document.getElementById('threadPageUrl');
-    const includeKeywordsInput = document.getElementById('includeKeywords');
-    const excludeKeywordsInput = document.getElementById('excludeKeywords');
+    const customThreadsTextarea = document.getElementById('customThreads');
     const addThreadRuleButton = document.getElementById('addThreadRuleButton');
     const threadRulesListDiv = document.getElementById('threadRulesList');
 
@@ -93,8 +92,7 @@ document.addEventListener('DOMContentLoaded', () => {
             ruleDiv.innerHTML = `
                 <button class="delete-thread-rule" data-index="${index}" title="Delete this rule">×</button>
                 <div class="rule-page-url">${rule.pageUrl}</div>
-                <div><strong>Include:</strong> ${rule.includeKeywords.join(', ')}</div>
-                <div><strong>Exclude:</strong> ${rule.excludeKeywords.join(', ')}</div>
+                <div class="rule-subforums">${rule.threadUrls.join('<br>')}</div>
             `;
             threadRulesListDiv.appendChild(ruleDiv);
         });
@@ -105,25 +103,23 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function addThreadRule() {
         const pageUrl = threadPageUrlInput.value.trim();
-        const includeKeywords = includeKeywordsInput.value.split(',').map(kw => kw.trim()).filter(kw => kw);
-        const excludeKeywords = excludeKeywordsInput.value.split(',').map(kw => kw.trim()).filter(kw => kw);
+        const threadUrls = customThreadsTextarea.value.split('\n').map(url => url.trim()).filter(url => url);
 
-        if (!pageUrl) {
-            setStatus('Please provide a subforum page URL for the thread rule.', true);
+        if (!pageUrl || threadUrls.length === 0) {
+            setStatus('Please provide a subforum page URL and at least one thread URL.', true);
             return;
         }
 
         const existingRuleIndex = threadRules.findIndex(rule => rule.pageUrl === pageUrl);
         if (existingRuleIndex > -1) {
-            threadRules[existingRuleIndex] = { pageUrl, includeKeywords, excludeKeywords };
+            threadRules[existingRuleIndex].threadUrls = threadUrls;
         } else {
-            threadRules.push({ pageUrl, includeKeywords, excludeKeywords });
+            threadRules.push({ pageUrl, threadUrls });
         }
         
         saveThreadRules();
         threadPageUrlInput.value = '';
-        includeKeywordsInput.value = '';
-        excludeKeywordsInput.value = '';
+        customThreadsTextarea.value = '';
     }
 
     function deleteThreadRule(event) {
@@ -149,15 +145,19 @@ document.addEventListener('DOMContentLoaded', () => {
         const pageUrl = urlParams.get('pageUrl');
         if (pageUrl) {
             const decodedUrl = decodeURIComponent(pageUrl);
-            // Heuristic to decide which form to fill
-            if (decodedUrl.includes('/threads/')) {
-                 threadPageUrlInput.value = decodedUrl;
+            
+            // Heuristic fallback before scraping
+            const existingThreadRule = threadRules.find(rule => rule.pageUrl === decodedUrl);
+            const existingSubforumRule = subforumRules.find(rule => rule.pageUrl === decodedUrl);
+            if (existingThreadRule) {
+                threadPageUrlInput.value = decodedUrl;
+                customThreadsTextarea.value = existingThreadRule.threadUrls.join('\n');
+            } else if (existingSubforumRule) {
+                subforumPageUrlInput.value = decodedUrl;
+                customSubforumsTextarea.value = existingSubforumRule.subforumUrls.join('\n');
             } else {
-                 subforumPageUrlInput.value = decodedUrl;
-                 const existingRule = subforumRules.find(rule => rule.pageUrl === decodedUrl);
-                 if (existingRule) {
-                      customSubforumsTextarea.value = existingRule.subforumUrls.join('\n');
-                 }
+                // Default fallback
+                subforumPageUrlInput.value = decodedUrl;
             }
 
             // Attempt to query the tab and scrape its items for the Interactive Builder
@@ -171,6 +171,23 @@ document.addEventListener('DOMContentLoaded', () => {
                         if (results && results[0] && results[0].result) {
                             const res = results[0].result;
                             if (res.success) {
+                                if (res.type === 'threads') {
+                                    threadPageUrlInput.value = decodedUrl;
+                                    const exRule = threadRules.find(rule => rule.pageUrl === decodedUrl);
+                                    if (exRule) {
+                                        customThreadsTextarea.value = exRule.threadUrls.join('\n');
+                                    } else {
+                                        customThreadsTextarea.value = '';
+                                    }
+                                } else {
+                                    subforumPageUrlInput.value = decodedUrl;
+                                    const exRule = subforumRules.find(rule => rule.pageUrl === decodedUrl);
+                                    if (exRule) {
+                                        customSubforumsTextarea.value = exRule.subforumUrls.join('\n');
+                                    } else {
+                                        customSubforumsTextarea.value = '';
+                                    }
+                                }
                                 setupInteractiveBuilder(res.items, res.type, decodedUrl);
                             } else {
                                 console.warn('Interactive builder scrape error:', res.error);
@@ -358,70 +375,151 @@ document.addEventListener('DOMContentLoaded', () => {
 
         } else if (type === 'threads') {
             const existingRule = threadRules.find(r => r.pageUrl === pageUrl);
-            const initialInclude = existingRule ? existingRule.includeKeywords.join(', ') : '';
-            const initialExclude = existingRule ? existingRule.excludeKeywords.join(', ') : '';
+            const savedUrls = existingRule ? existingRule.threadUrls : [];
+
+            // Initialize orderedThreads in the saved order
+            let orderedThreads = [];
+            savedUrls.forEach(url => {
+                const found = items.find(item => item.url === url);
+                if (found) {
+                    orderedThreads.push(found);
+                }
+            });
+            // For items not in the saved list but checked (or if no rule exists yet), default to checked in document order
+            if (!existingRule) {
+                orderedThreads = [...items];
+            }
 
             const interfaceHtml = `
-                <p>Define keyword filters for threads. Check the real-time preview below to see which threads match your criteria.</p>
-                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px;">
-                    <div class="form-group">
-                        <label for="builderIncludeKeywords">Include Keywords (comma-separated):</label>
-                        <input type="text" id="builderIncludeKeywords" placeholder="e.g., proposed, construction" value="${initialInclude}">
-                    </div>
-                    <div class="form-group">
-                        <label for="builderExcludeKeywords">Exclude Keywords (comma-separated):</label>
-                        <input type="text" id="builderExcludeKeywords" placeholder="e.g., completed, discussion" value="${initialExclude}">
-                    </div>
+                <p>Check the threads you want the scanner to open. Unchecked threads will be automatically marked as read.</p>
+                <div class="builder-bulk-actions">
+                    <button type="button" class="btn-small" id="builderSelectAll">Select All</button>
+                    <button type="button" class="btn-small" id="builderClearAll">Clear All</button>
                 </div>
-                <div class="rules-title">Live Preview (Matches based on above keywords)</div>
-                <div class="preview-list" id="builderPreviewList"></div>
+                <div class="builder-checkbox-grid">
+                    ${items.map((item, idx) => {
+                        const isChecked = orderedThreads.some(s => s.url === item.url) ? 'checked' : '';
+                        return `
+                            <label class="builder-checkbox-label">
+                                <input type="checkbox" class="thread-checkbox" value="${item.url}" data-title="${item.title}" ${isChecked}>
+                                <span>${item.title}</span>
+                            </label>
+                        `;
+                    }).join('')}
+                </div>
+
+                <!-- Sequencing Container -->
+                <div id="sequencingContainer" style="margin-top: 16px;">
+                    <label style="font-size: 13px; font-weight: 600; color: var(--text-primary); display: block; margin-bottom: 2px;">⚡ Set Opening Sequence:</label>
+                    <p style="font-size: 11px; color: var(--text-secondary); margin-bottom: 8px;">Use the arrows to arrange the order in which these threads will be opened.</p>
+                    <div id="orderList" class="preview-list"></div>
+                </div>
             `;
             builderContent.innerHTML = interfaceHtml;
 
-            const includeInput = document.getElementById('builderIncludeKeywords');
-            const excludeInput = document.getElementById('builderExcludeKeywords');
-            const previewList = document.getElementById('builderPreviewList');
+            const orderListDiv = document.getElementById('orderList');
 
-            const renderPreview = () => {
-                const includes = includeInput.value.split(',').map(kw => kw.trim().toLowerCase()).filter(Boolean);
-                const excludes = excludeInput.value.split(',').map(kw => kw.trim().toLowerCase()).filter(Boolean);
+            const renderOrderList = () => {
+                if (orderedThreads.length === 0) {
+                    document.getElementById('sequencingContainer').style.display = 'none';
+                    return;
+                }
+                document.getElementById('sequencingContainer').style.display = 'block';
 
-                previewList.innerHTML = items.map(item => {
-                    const titleLower = item.title.toLowerCase();
-                    const matchesInclude = includes.length === 0 || includes.some(kw => titleLower.includes(kw));
-                    const matchesExclude = excludes.length > 0 && excludes.some(kw => titleLower.includes(kw));
-                    const isOpen = matchesInclude && !matchesExclude;
-
+                orderListDiv.innerHTML = orderedThreads.map((item, idx) => {
                     return `
-                        <div class="preview-item ${isOpen ? 'open' : 'ignore'}">
-                            <span class="preview-title" title="${item.title}">${item.title}</span>
-                            <span class="preview-badge ${isOpen ? 'open' : 'ignore'}">
-                                ${isOpen ? '⚡ Open' : '❌ Ignore'}
-                            </span>
+                        <div class="preview-item" data-url="${item.url}" style="padding: 6px 12px; margin-bottom: 4px; display: flex; align-items: center; justify-content: space-between;">
+                            <div style="display: flex; align-items: center; gap: 8px;">
+                                <span style="font-weight: 700; color: #818cf8; font-size: 12px;">#${idx + 1}</span>
+                                <span class="preview-title" style="font-size: 13px; font-weight: 500;">${item.title}</span>
+                            </div>
+                            <div style="display: flex; gap: 4px;">
+                                <button type="button" class="btn-small btn-move-up" data-index="${idx}" style="padding: 2px 6px;" ${idx === 0 ? 'disabled' : ''}>▲</button>
+                                <button type="button" class="btn-small btn-move-down" data-index="${idx}" style="padding: 2px 6px;" ${idx === orderedThreads.length - 1 ? 'disabled' : ''}>▼</button>
+                            </div>
                         </div>
                     `;
                 }).join('');
+
+                // Wire up move buttons
+                document.querySelectorAll('.btn-move-up').forEach(btn => {
+                    btn.addEventListener('click', (e) => {
+                        const idx = parseInt(e.target.dataset.index, 10);
+                        if (idx > 0) {
+                            const temp = orderedThreads[idx];
+                            orderedThreads[idx] = orderedThreads[idx - 1];
+                            orderedThreads[idx - 1] = temp;
+                            renderOrderList();
+                        }
+                    });
+                });
+
+                document.querySelectorAll('.btn-move-down').forEach(btn => {
+                    btn.addEventListener('click', (e) => {
+                        const idx = parseInt(e.target.dataset.index, 10);
+                        if (idx < orderedThreads.length - 1) {
+                            const temp = orderedThreads[idx];
+                            orderedThreads[idx] = orderedThreads[idx + 1];
+                            orderedThreads[idx + 1] = temp;
+                            renderOrderList();
+                        }
+                    });
+                });
             };
 
-            includeInput.addEventListener('input', renderPreview);
-            excludeInput.addEventListener('input', renderPreview);
-            renderPreview();
+            renderOrderList();
+
+            // Wire up checkbox state listeners
+            document.querySelectorAll('.thread-checkbox').forEach(cb => {
+                cb.addEventListener('change', (e) => {
+                    const url = e.target.value;
+                    const title = e.target.dataset.title;
+                    if (e.target.checked) {
+                        if (!orderedThreads.some(s => s.url === url)) {
+                            orderedThreads.push({ url, title });
+                        }
+                    } else {
+                        orderedThreads = orderedThreads.filter(s => s.url !== url);
+                    }
+                    renderOrderList();
+                });
+            });
+
+            document.getElementById('builderSelectAll').addEventListener('click', () => {
+                document.querySelectorAll('.thread-checkbox').forEach(cb => {
+                    cb.checked = true;
+                    const url = cb.value;
+                    const title = cb.dataset.title;
+                    if (!orderedThreads.some(s => s.url === url)) {
+                        orderedThreads.push({ url, title });
+                    }
+                });
+                renderOrderList();
+            });
+
+            document.getElementById('builderClearAll').addEventListener('click', () => {
+                document.querySelectorAll('.thread-checkbox').forEach(cb => cb.checked = false);
+                orderedThreads = [];
+                renderOrderList();
+            });
 
             const newSaveHandler = () => {
-                const includeKeywords = includeInput.value.split(',').map(kw => kw.trim()).filter(Boolean);
-                const excludeKeywords = excludeInput.value.split(',').map(kw => kw.trim()).filter(Boolean);
+                const checkedUrls = orderedThreads.map(s => s.url);
+
+                if (checkedUrls.length === 0) {
+                    setStatus('Please select at least one thread to open.', true);
+                    return;
+                }
 
                 const existingIndex = threadRules.findIndex(r => r.pageUrl === pageUrl);
-                const ruleData = { pageUrl, includeKeywords, excludeKeywords };
-
                 if (existingIndex > -1) {
-                    threadRules[existingIndex] = ruleData;
+                    threadRules[existingIndex].threadUrls = checkedUrls;
                 } else {
-                    threadRules.push(ruleData);
+                    threadRules.push({ pageUrl, threadUrls: checkedUrls });
                 }
 
                 saveThreadRules();
-                setStatus('Thread rule saved successfully from Interactive Builder!');
+                setStatus('Thread sequence saved successfully from Interactive Builder!');
             };
 
             const oldSaveBtn = saveBtn.cloneNode(true);

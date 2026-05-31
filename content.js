@@ -8,14 +8,16 @@ async function processSubforums() {
     document.querySelectorAll('.node.node--forum').forEach(item => {
         if (item.querySelector('.node-icon .node--unread.forum')) {
             const link = item.querySelector('.node-main .node-title a');
-            if (link && link.href) unreadLinks.push(link.href);
+            if (link && link.href) {
+                unreadLinks.push({ url: link.href, title: link.innerText.trim() });
+            }
         }
     });
     document.querySelectorAll('.subNodeLink--unread').forEach(link => {
-        if (link.href) unreadLinks.push(link.href);
+        if (link.href) {
+            unreadLinks.push({ url: link.href, title: link.innerText.trim() });
+        }
     });
-    
-    unreadLinks.reverse();
 
     const result = await browser.storage.sync.get('subforumRules');
     const rules = result.subforumRules || [];
@@ -23,9 +25,17 @@ async function processSubforums() {
 
     if (matchingRule) {
         const customUrls = matchingRule.subforumUrls.map(s => s.trim()).filter(Boolean);
-        const urlsToOpen = unreadLinks.filter(url => customUrls.some(customUrl => url.includes(customUrl)));
-        const urlsToMarkAsRead = unreadLinks.filter(url => !urlsToOpen.includes(url));
-        return { urlsToOpen, urlsToMarkAsRead };
+        const matched = unreadLinks.filter(item => customUrls.some(customUrl => item.url.includes(customUrl)));
+        
+        // Sort matched to follow the exact order in customUrls
+        matched.sort((a, b) => {
+            const indexA = customUrls.findIndex(url => a.url.includes(url));
+            const indexB = customUrls.findIndex(url => b.url.includes(url));
+            return indexA - indexB;
+        });
+
+        const urlsToMarkAsRead = unreadLinks.map(item => item.url).filter(url => !matched.some(o => o.url === url));
+        return { urlsToOpen: matched, urlsToMarkAsRead };
     } else {
         return { urlsToOpen: unreadLinks, urlsToMarkAsRead: [] };
     }
@@ -46,27 +56,25 @@ async function processThreads() {
         }
     });
 
-    unreadThreads.reverse();
-
     const result = await browser.storage.sync.get('threadRules');
     const rules = result.threadRules || [];
     const matchingRule = rules.find(rule => window.location.href.startsWith(rule.pageUrl));
 
     if (matchingRule) {
-        const includeKw = matchingRule.includeKeywords.map(kw => kw.toLowerCase());
-        const excludeKw = matchingRule.excludeKeywords.map(kw => kw.toLowerCase());
-
-        const urlsToOpen = unreadThreads.filter(thread => {
-            const title = thread.title.toLowerCase();
-            const hasInclude = includeKw.length === 0 || includeKw.some(kw => title.includes(kw));
-            const hasExclude = excludeKw.length > 0 && excludeKw.some(kw => title.includes(kw));
-            return hasInclude && !hasExclude;
-        }).map(thread => thread.url);
+        const customUrls = matchingRule.threadUrls.map(s => s.trim()).filter(Boolean);
+        const matched = unreadThreads.filter(item => customUrls.some(customUrl => item.url.includes(customUrl)));
         
-        const urlsToMarkAsRead = unreadThreads.map(t => t.url).filter(url => !urlsToOpen.includes(url));
-        return { urlsToOpen, urlsToMarkAsRead };
+        // Sort matched to follow the exact order in customUrls
+        matched.sort((a, b) => {
+            const indexA = customUrls.findIndex(url => a.url.includes(url));
+            const indexB = customUrls.findIndex(url => b.url.includes(url));
+            return indexA - indexB;
+        });
+
+        const urlsToMarkAsRead = unreadThreads.map(item => item.url).filter(url => !matched.some(o => o.url === url));
+        return { urlsToOpen: matched, urlsToMarkAsRead };
     } else {
-        return { urlsToOpen: unreadThreads.map(t => t.url), urlsToMarkAsRead: [] };
+        return { urlsToOpen: unreadThreads, urlsToMarkAsRead: [] };
     }
 }
 
@@ -100,8 +108,14 @@ async function main() {
         finalThreadUrlsToMarkAsRead.push(...threadResult.urlsToMarkAsRead);
     }
 
-    // Remove duplicates
-    finalUrlsToOpen = [...new Set(finalUrlsToOpen)];
+    // Remove duplicates based on URL property
+    const seen = new Set();
+    finalUrlsToOpen = finalUrlsToOpen.filter(item => {
+        if (seen.has(item.url)) return false;
+        seen.add(item.url);
+        return true;
+    });
+    
     finalSubforumUrlsToMarkAsRead = [...new Set(finalSubforumUrlsToMarkAsRead)];
     finalThreadUrlsToMarkAsRead = [...new Set(finalThreadUrlsToMarkAsRead)];
 

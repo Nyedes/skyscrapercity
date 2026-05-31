@@ -453,7 +453,7 @@
             <!-- Thread Rules Section -->
             <div class="card">
                 <h2>📝 Thread Rules</h2>
-                <p>Rules applied to thread list views in a single subforum. Filter by keyword matching.</p>
+                <p>Rules applied to thread list views in a single subforum. Filters matches and marks the rest read in a custom sequence.</p>
                 
                 <div id="add-thread-rule-form">
                     <div class="form-group">
@@ -462,13 +462,8 @@
                     </div>
 
                     <div class="form-group" style="margin-top: 12px;">
-                        <label for="includeKeywords">Include Keywords (comma-separated):</label>
-                        <input type="text" id="includeKeywords" placeholder="e.g., proposed, construction">
-                    </div>
-
-                    <div class="form-group" style="margin-top: 12px;">
-                        <label for="excludeKeywords">Exclude Keywords (comma-separated):</label>
-                        <input type="text" id="excludeKeywords" placeholder="e.g., completed, discussion">
+                        <label for="customThreads">Thread URLs to Open (one per line):</label>
+                        <textarea id="customThreads" placeholder="Enter target thread URLs to scan and open."></textarea>
                     </div>
                     
                     <button id="addThreadRuleButton" class="btn-primary" style="margin-top: 16px; width: 100%;">
