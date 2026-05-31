@@ -200,6 +200,26 @@ document.addEventListener('DOMContentLoaded', () => {
             const existingRule = subforumRules.find(r => r.pageUrl === pageUrl);
             const savedUrls = existingRule ? existingRule.subforumUrls : [];
 
+            // Initialize orderedSubforums in the saved order
+            let orderedSubforums = [];
+            savedUrls.forEach(url => {
+                const found = items.find(item => item.url === url);
+                if (found) {
+                    orderedSubforums.push(found);
+                }
+            });
+            // For items not in the saved list but checked (or if no rule exists yet), default to checked in document order
+            if (!existingRule) {
+                orderedSubforums = [...items];
+            } else {
+                // If there is an existing rule, append any other items (unchecked by default)
+                items.forEach(item => {
+                    if (!savedUrls.includes(item.url)) {
+                        // Not checked, so not in orderedSubforums
+                    }
+                });
+            }
+
             const interfaceHtml = `
                 <p>Check the subforums you want the scanner to open. Unchecked subforums will be automatically marked as read.</p>
                 <div class="builder-bulk-actions">
@@ -208,29 +228,113 @@ document.addEventListener('DOMContentLoaded', () => {
                 </div>
                 <div class="builder-checkbox-grid">
                     ${items.map((item, idx) => {
-                        const isChecked = savedUrls.length === 0 || savedUrls.includes(item.url) ? 'checked' : '';
+                        const isChecked = orderedSubforums.some(s => s.url === item.url) ? 'checked' : '';
                         return `
                             <label class="builder-checkbox-label">
-                                <input type="checkbox" class="subforum-checkbox" value="${item.url}" ${isChecked}>
+                                <input type="checkbox" class="subforum-checkbox" value="${item.url}" data-title="${item.title}" ${isChecked}>
                                 <span>${item.title}</span>
                             </label>
                         `;
                     }).join('')}
                 </div>
+
+                <!-- Sequencing Container -->
+                <div id="sequencingContainer" style="margin-top: 16px;">
+                    <label style="font-size: 13px; font-weight: 600; color: var(--text-primary); display: block; margin-bottom: 2px;">⚡ Set Opening Sequence:</label>
+                    <p style="font-size: 11px; color: var(--text-secondary); margin-bottom: 8px;">Use the arrows to arrange the order in which these subforums will be opened.</p>
+                    <div id="orderList" class="preview-list"></div>
+                </div>
             `;
             builderContent.innerHTML = interfaceHtml;
 
-            document.getElementById('builderSelectAll').addEventListener('click', () => {
-                document.querySelectorAll('.subforum-checkbox').forEach(cb => cb.checked = true);
+            const orderListDiv = document.getElementById('orderList');
+
+            const renderOrderList = () => {
+                if (orderedSubforums.length === 0) {
+                    document.getElementById('sequencingContainer').style.display = 'none';
+                    return;
+                }
+                document.getElementById('sequencingContainer').style.display = 'block';
+
+                orderListDiv.innerHTML = orderedSubforums.map((item, idx) => {
+                    return `
+                        <div class="preview-item" data-url="${item.url}" style="padding: 6px 12px; margin-bottom: 4px; display: flex; align-items: center; justify-content: space-between;">
+                            <div style="display: flex; align-items: center; gap: 8px;">
+                                <span style="font-weight: 700; color: #818cf8; font-size: 12px;">#${idx + 1}</span>
+                                <span class="preview-title" style="font-size: 13px; font-weight: 500;">${item.title}</span>
+                            </div>
+                            <div style="display: flex; gap: 4px;">
+                                <button type="button" class="btn-small btn-move-up" data-index="${idx}" style="padding: 2px 6px;" ${idx === 0 ? 'disabled' : ''}>▲</button>
+                                <button type="button" class="btn-small btn-move-down" data-index="${idx}" style="padding: 2px 6px;" ${idx === orderedSubforums.length - 1 ? 'disabled' : ''}>▼</button>
+                            </div>
+                        </div>
+                    `;
+                }).join('');
+
+                // Wire up move buttons
+                document.querySelectorAll('.btn-move-up').forEach(btn => {
+                    btn.addEventListener('click', (e) => {
+                        const idx = parseInt(e.target.dataset.index, 10);
+                        if (idx > 0) {
+                            const temp = orderedSubforums[idx];
+                            orderedSubforums[idx] = orderedSubforums[idx - 1];
+                            orderedSubforums[idx - 1] = temp;
+                            renderOrderList();
+                        }
+                    });
+                });
+
+                document.querySelectorAll('.btn-move-down').forEach(btn => {
+                    btn.addEventListener('click', (e) => {
+                        const idx = parseInt(e.target.dataset.index, 10);
+                        if (idx < orderedSubforums.length - 1) {
+                            const temp = orderedSubforums[idx];
+                            orderedSubforums[idx] = orderedSubforums[idx + 1];
+                            orderedSubforums[idx + 1] = temp;
+                            renderOrderList();
+                        }
+                    });
+                });
+            };
+
+            renderOrderList();
+
+            // Wire up checkbox state listeners
+            document.querySelectorAll('.subforum-checkbox').forEach(cb => {
+                cb.addEventListener('change', (e) => {
+                    const url = e.target.value;
+                    const title = e.target.dataset.title;
+                    if (e.target.checked) {
+                        if (!orderedSubforums.some(s => s.url === url)) {
+                            orderedSubforums.push({ url, title });
+                        }
+                    } else {
+                        orderedSubforums = orderedSubforums.filter(s => s.url !== url);
+                    }
+                    renderOrderList();
+                });
             });
+
+            document.getElementById('builderSelectAll').addEventListener('click', () => {
+                document.querySelectorAll('.subforum-checkbox').forEach(cb => {
+                    cb.checked = true;
+                    const url = cb.value;
+                    const title = cb.dataset.title;
+                    if (!orderedSubforums.some(s => s.url === url)) {
+                        orderedSubforums.push({ url, title });
+                    }
+                });
+                renderOrderList();
+            });
+
             document.getElementById('builderClearAll').addEventListener('click', () => {
                 document.querySelectorAll('.subforum-checkbox').forEach(cb => cb.checked = false);
+                orderedSubforums = [];
+                renderOrderList();
             });
 
             const newSaveHandler = () => {
-                const checkedUrls = Array.from(document.querySelectorAll('.subforum-checkbox'))
-                    .filter(cb => cb.checked)
-                    .map(cb => cb.value);
+                const checkedUrls = orderedSubforums.map(s => s.url);
 
                 if (checkedUrls.length === 0) {
                     setStatus('Please select at least one subforum to open.', true);
@@ -245,7 +349,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
 
                 saveSubforumRules();
-                setStatus('Subforum rule saved successfully from Interactive Builder!');
+                setStatus('Subforum sequence saved successfully from Interactive Builder!');
             };
 
             const oldSaveBtn = saveBtn.cloneNode(true);
