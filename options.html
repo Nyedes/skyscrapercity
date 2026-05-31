@@ -274,6 +274,124 @@
             opacity: 1;
             transform: translateY(0);
         }
+
+        /* --- Interactive Builder Styles --- */
+        .builder-checkbox-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+            gap: 12px;
+            margin-top: 10px;
+            max-height: 200px;
+            overflow-y: auto;
+            padding: 12px;
+            background: rgba(0, 0, 0, 0.15);
+            border-radius: 8px;
+            border: 1px solid rgba(255, 255, 255, 0.05);
+        }
+
+        .builder-checkbox-label {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 13px;
+            cursor: pointer;
+            padding: 6px 8px;
+            border-radius: 6px;
+            background: rgba(255, 255, 255, 0.02);
+            border: 1px solid transparent;
+            transition: all 0.2s ease;
+        }
+
+        .builder-checkbox-label:hover {
+            background: rgba(255, 255, 255, 0.05);
+            border-color: rgba(255, 255, 255, 0.1);
+        }
+
+        .builder-checkbox-label input {
+            cursor: pointer;
+        }
+
+        .preview-list {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            max-height: 220px;
+            overflow-y: auto;
+            padding: 12px;
+            background: rgba(0, 0, 0, 0.15);
+            border-radius: 8px;
+            border: 1px solid rgba(255, 255, 255, 0.05);
+        }
+
+        .preview-item {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 8px 12px;
+            border-radius: 6px;
+            font-size: 12px;
+            background: rgba(255, 255, 255, 0.02);
+            border: 1px solid transparent;
+            transition: all 0.2s ease;
+        }
+
+        .preview-item.open {
+            background: rgba(16, 185, 129, 0.06);
+            border-color: rgba(16, 185, 129, 0.15);
+        }
+
+        .preview-item.ignore {
+            background: rgba(239, 68, 68, 0.04);
+            border-color: rgba(239, 68, 68, 0.1);
+            opacity: 0.7;
+        }
+
+        .preview-title {
+            font-weight: 500;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+            margin-right: 12px;
+            color: var(--text-primary);
+        }
+
+        .preview-badge {
+            font-size: 10px;
+            font-weight: 700;
+            padding: 2px 6px;
+            border-radius: 4px;
+            text-transform: uppercase;
+        }
+
+        .preview-badge.open {
+            background: rgba(16, 185, 129, 0.2);
+            color: #34d399;
+        }
+
+        .preview-badge.ignore {
+            background: rgba(148, 163, 184, 0.2);
+            color: #94a3b8;
+        }
+
+        .builder-bulk-actions {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 8px;
+        }
+
+        .btn-small {
+            padding: 6px 12px;
+            font-size: 11px;
+            font-weight: 600;
+            border-radius: 6px;
+            background: rgba(255, 255, 255, 0.08);
+            color: var(--text-primary);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .btn-small:hover {
+            background: rgba(255, 255, 255, 0.15);
+        }
     </style>
     <script src="options.js"></script>
 </head>
@@ -283,6 +401,20 @@
             <h1>🏙️ Skyscraper City Opener Settings</h1>
             <p>Define rules for scanning specific forum sections and thread listings.</p>
         </header>
+
+        <!-- Interactive Builder Container -->
+        <div id="interactiveBuilder" class="card" style="display: none;">
+            <h2 style="color: #818cf8;">🛠️ Interactive Rule Builder</h2>
+            <p style="margin-bottom: 4px;">Configuring rules based on page: <a id="builderPageUrl" href="#" target="_blank" style="color: #38bdf8; font-weight: 600; word-break: break-all; text-decoration: none;"></a></p>
+            
+            <div id="builderContent" style="display: flex; flex-direction: column; gap: 16px; margin-top: 10px;">
+                <!-- Dynamically populated -->
+            </div>
+            
+            <button id="saveBuilderRuleButton" class="btn-primary" style="margin-top: 16px; width: 100%;">
+                Save & Apply Rule
+            </button>
+        </div>
 
         <div class="sections-grid">
             <!-- Subforum Rules Section -->
