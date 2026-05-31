@@ -35,7 +35,11 @@ async function processSubforums() {
 async function processThreads() {
     console.log("Scanning for threads...");
     const unreadThreads = [];
-    document.querySelectorAll('.structItem.structItem--thread.structItem--unread').forEach(item => {
+    
+    // Check for both common XenForo unread classes
+    const selector = '.structItem.structItem--thread.structItem--unread, .structItem.structItem--thread.is-unread';
+    
+    document.querySelectorAll(selector).forEach(item => {
         const titleLink = item.querySelector('.structItem-title a[data-tp-primary="on"]');
         if (titleLink && titleLink.href) {
             unreadThreads.push({ url: titleLink.href, title: titleLink.innerText.trim() });
@@ -66,10 +70,6 @@ async function processThreads() {
     }
 }
 
-// --- Main Execution ---
-async function main() {
-    let finalUrlsToOpen = [];
-    let finalUrlsToMarkAsRead = [];
 // --- Helper to get CSRF token ---
 function getCsrfToken() {
     const htmlCsrf = document.documentElement.getAttribute('data-csrf');
