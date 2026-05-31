@@ -1,64 +1,352 @@
 <!DOCTYPE html>
 <html>
 <head>
+    <meta charset="utf-8">
     <title>Skyscraper City Forum Opener Options</title>
     <style>
-        body { font-family: Arial, sans-serif; padding: 20px; max-width: 800px; margin: auto; }
-        h1, h2 { border-bottom: 1px solid #ccc; padding-bottom: 5px; }
-        label { display: block; margin-bottom: 5px; font-weight: bold; }
-        input[type="text"], textarea { width: 100%; padding: 8px; margin-bottom: 10px; box-sizing: border-box; }
-        textarea { height: 150px; }
-        button { padding: 10px 20px; cursor: pointer; }
-        #status { margin-top: 10px; color: green; font-weight: bold; }
-        .rule { border: 1px solid #ddd; padding: 15px; margin-bottom: 15px; border-radius: 5px; }
-        .rule-page-url { font-weight: bold; margin-bottom: 10px; }
-        .rule-subforums { white-space: pre-wrap; word-wrap: break-word; background-color: #f9f9f9; padding: 10px; border-radius: 3px; }
-        .delete-rule { float: right; color: red; background: none; border: none; cursor: pointer; font-size: 16px; }
+        @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap');
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: 'Outfit', sans-serif;
+            background: radial-gradient(circle at top right, #1e1b4b 0%, #0f172a 100%);
+            color: #f1f5f9;
+            min-height: 100vh;
+            padding: 40px 20px;
+        }
+
+        .container {
+            max-width: 900px;
+            margin: 0 auto;
+            display: flex;
+            flex-direction: column;
+            gap: 32px;
+        }
+
+        header {
+            text-align: center;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+            padding-bottom: 24px;
+        }
+
+        header h1 {
+            font-size: 28px;
+            font-weight: 700;
+            background: linear-gradient(to right, #38bdf8, #818cf8);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin-bottom: 8px;
+        }
+
+        header p {
+            color: #94a3b8;
+            font-size: 14px;
+        }
+
+        .sections-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 24px;
+        }
+
+        @media (max-width: 768px) {
+            .sections-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .card {
+            background: rgba(30, 41, 59, 0.45);
+            border: 1px solid rgba(255, 255, 255, 0.06);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border-radius: 16px;
+            padding: 24px;
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+            box-shadow: 0 4px 30px rgba(0, 0, 0, 0.15);
+        }
+
+        .card h2 {
+            font-size: 18px;
+            font-weight: 600;
+            color: #38bdf8;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+            padding-bottom: 10px;
+        }
+
+        .card p {
+            color: #94a3b8;
+            font-size: 13px;
+            line-height: 1.4;
+        }
+
+        .form-group {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+
+        label {
+            font-size: 13px;
+            font-weight: 500;
+            color: #cbd5e1;
+        }
+
+        input[type="text"], textarea {
+            width: 100%;
+            background: rgba(15, 23, 42, 0.6);
+            border: 1px solid #334155;
+            color: #f8fafc;
+            border-radius: 8px;
+            padding: 10px 12px;
+            font-family: inherit;
+            font-size: 13px;
+            transition: all 0.2s ease;
+            outline: none;
+        }
+
+        input[type="text"]:focus, textarea:focus {
+            border-color: #38bdf8;
+            box-shadow: 0 0 0 3px rgba(56, 189, 248, 0.2);
+            background: rgba(15, 23, 42, 0.8);
+        }
+
+        textarea {
+            height: 100px;
+            resize: vertical;
+        }
+
+        button {
+            padding: 12px 20px;
+            font-family: inherit;
+            font-size: 13px;
+            font-weight: 600;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            border: none;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #3b82f6 0%, #06b6d4 100%);
+            color: white;
+            box-shadow: 0 4px 12px rgba(6, 182, 212, 0.2);
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 6px 16px rgba(6, 182, 212, 0.35);
+            filter: brightness(1.05);
+        }
+
+        .btn-primary:active {
+            transform: translateY(0);
+        }
+
+        /* Rules List */
+        .rules-list-container {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            max-height: 250px;
+            overflow-y: auto;
+            padding-right: 4px;
+        }
+
+        /* Custom Scrollbar */
+        .rules-list-container::-webkit-scrollbar {
+            width: 6px;
+        }
+        .rules-list-container::-webkit-scrollbar-track {
+            background: rgba(255, 255, 255, 0.02);
+            border-radius: 3px;
+        }
+        .rules-list-container::-webkit-scrollbar-thumb {
+            background: rgba(255, 255, 255, 0.15);
+            border-radius: 3px;
+        }
+        .rules-list-container::-webkit-scrollbar-thumb:hover {
+            background: rgba(255, 255, 255, 0.25);
+        }
+
+        .rules-title {
+            font-size: 14px;
+            font-weight: 600;
+            color: #e2e8f0;
+            margin-top: 10px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+            padding-bottom: 6px;
+        }
+
+        .rule {
+            background: rgba(15, 23, 42, 0.4);
+            border: 1px solid rgba(255, 255, 255, 0.05);
+            border-radius: 8px;
+            padding: 12px 14px;
+            position: relative;
+            font-size: 13px;
+            line-height: 1.5;
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+
+        .rule-page-url {
+            color: #38bdf8;
+            font-weight: 600;
+            word-break: break-all;
+            padding-right: 28px;
+        }
+
+        .rule-subforums {
+            white-space: pre-wrap;
+            word-wrap: break-word;
+            color: #94a3b8;
+            font-family: monospace;
+            background: rgba(0, 0, 0, 0.15);
+            padding: 6px 8px;
+            border-radius: 4px;
+            margin-top: 4px;
+            font-size: 11px;
+        }
+
+        .delete-subforum-rule, .delete-thread-rule {
+            position: absolute;
+            top: 8px;
+            right: 8px;
+            width: 24px;
+            height: 24px;
+            padding: 0;
+            background: rgba(239, 68, 68, 0.1);
+            color: #f87171;
+            border: 1px solid rgba(239, 68, 68, 0.2);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 14px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .delete-subforum-rule:hover, .delete-thread-rule:hover {
+            background: rgba(239, 68, 68, 0.25);
+            border-color: #f87171;
+            color: #ffffff;
+            transform: scale(1.1);
+        }
+
+        /* Status Banner */
+        #status {
+            position: fixed;
+            bottom: 24px;
+            right: 24px;
+            padding: 12px 20px;
+            border-radius: 8px;
+            background: rgba(16, 185, 129, 0.95);
+            border: 1px solid rgba(16, 185, 129, 0.3);
+            color: #ffffff;
+            font-weight: 600;
+            font-size: 14px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+            z-index: 1000;
+            opacity: 0;
+            transform: translateY(10px);
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            pointer-events: none;
+        }
+
+        #status:not(:empty) {
+            opacity: 1;
+            transform: translateY(0);
+        }
     </style>
     <script src="options.js"></script>
 </head>
 <body>
-    <h1>Extension Options</h1>
+    <div class="container">
+        <header>
+            <h1>🏙️ Skyscraper City Opener Settings</h1>
+            <p>Define rules for scanning specific forum sections and thread listings.</p>
+        </header>
 
-    <h2>Subforum Rules</h2>
-    <p>Use these rules for pages that list multiple subforums.</p>
-    <div id="add-subforum-rule-form" class="rule-form">
-        <label for="subforumPageUrl">Forum Page URL:</label>
-        <input type="text" id="subforumPageUrl" placeholder="e.g., https://www.skyscrapercity.com/forums/ozscrapers.65/">
-        
-        <label for="customSubforums">Subforum URLs to Open (one per line):</label>
-        <textarea id="customSubforums" placeholder="Enter the full URLs of the subforums you want to open for the page above."></textarea>
-        
-        <button id="addSubforumRuleButton">Add Subforum Rule</button>
+        <div class="sections-grid">
+            <!-- Subforum Rules Section -->
+            <div class="card">
+                <h2>📁 Subforum Rules</h2>
+                <p>Rules applied to multi-subforum index pages. Filters matches and marks the rest read.</p>
+                
+                <div id="add-subforum-rule-form">
+                    <div class="form-group">
+                        <label for="subforumPageUrl">Forum Page URL:</label>
+                        <input type="text" id="subforumPageUrl" placeholder="e.g., https://www.skyscrapercity.com/forums/ozscrapers.65/">
+                    </div>
+                    
+                    <div class="form-group" style="margin-top: 12px;">
+                        <label for="customSubforums">Subforum URLs to Open (one per line):</label>
+                        <textarea id="customSubforums" placeholder="Enter target subforum URLs to scan and open."></textarea>
+                    </div>
+                    
+                    <button id="addSubforumRuleButton" class="btn-primary" style="margin-top: 16px; width: 100%;">
+                        Save Subforum Rule
+                    </button>
+                </div>
+
+                <div class="rules-title">Saved Rules</div>
+                <div id="subforumRulesList" class="rules-list-container">
+                    <!-- Dynamic Rules -->
+                </div>
+            </div>
+
+            <!-- Thread Rules Section -->
+            <div class="card">
+                <h2>📝 Thread Rules</h2>
+                <p>Rules applied to thread list views in a single subforum. Filter by keyword matching.</p>
+                
+                <div id="add-thread-rule-form">
+                    <div class="form-group">
+                        <label for="threadPageUrl">Subforum Page URL:</label>
+                        <input type="text" id="threadPageUrl" placeholder="e.g., https://www.skyscrapercity.com/forums/sydney-cbd.4057/">
+                    </div>
+
+                    <div class="form-group" style="margin-top: 12px;">
+                        <label for="includeKeywords">Include Keywords (comma-separated):</label>
+                        <input type="text" id="includeKeywords" placeholder="e.g., proposed, construction">
+                    </div>
+
+                    <div class="form-group" style="margin-top: 12px;">
+                        <label for="excludeKeywords">Exclude Keywords (comma-separated):</label>
+                        <input type="text" id="excludeKeywords" placeholder="e.g., completed, discussion">
+                    </div>
+                    
+                    <button id="addThreadRuleButton" class="btn-primary" style="margin-top: 16px; width: 100%;">
+                        Save Thread Rule
+                    </button>
+                </div>
+
+                <div class="rules-title">Saved Rules</div>
+                <div id="threadRulesList" class="rules-list-container">
+                    <!-- Dynamic Rules -->
+                </div>
+            </div>
+        </div>
     </div>
 
-    <h3>Saved Subforum Rules</h3>
-    <div id="subforumRulesList">
-        <!-- Subforum rules will be dynamically inserted here -->
-    </div>
-
-    <hr>
-
-    <h2>Thread Rules</h2>
-    <p>Use these rules for pages that list multiple threads within a single subforum.</p>
-    <div id="add-thread-rule-form" class="rule-form">
-        <label for="threadPageUrl">Subforum Page URL:</label>
-        <input type="text" id="threadPageUrl" placeholder="e.g., https://www.skyscrapercity.com/forums/sydney-cbd.4057/">
-
-        <label for="includeKeywords">Include threads with these keywords (comma-separated):</label>
-        <input type="text" id="includeKeywords" placeholder="e.g., proposed, construction">
-
-        <label for="excludeKeywords">Exclude threads with these keywords (comma-separated):</label>
-        <input type="text" id="excludeKeywords" placeholder="e.g., completed, discussion">
-        
-        <button id="addThreadRuleButton">Add Thread Rule</button>
-    </div>
-
-    <h3>Saved Thread Rules</h3>
-    <div id="threadRulesList">
-        <!-- Thread rules will be dynamically inserted here -->
-    </div>
-
-    <div id="status" style="margin-top: 20px;"></div>
+    <!-- Notification Toast -->
+    <div id="status"></div>
 </body>
 </html>

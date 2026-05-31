@@ -70,6 +70,20 @@ async function processThreads() {
 async function main() {
     let finalUrlsToOpen = [];
     let finalUrlsToMarkAsRead = [];
+// --- Helper to get CSRF token ---
+function getCsrfToken() {
+    const htmlCsrf = document.documentElement.getAttribute('data-csrf');
+    if (htmlCsrf) return htmlCsrf;
+    const inputCsrf = document.querySelector('input[name="_xfToken"]');
+    if (inputCsrf && inputCsrf.value) return inputCsrf.value;
+    return '';
+}
+
+// --- Main Execution ---
+async function main() {
+    let finalUrlsToOpen = [];
+    let finalSubforumUrlsToMarkAsRead = [];
+    let finalThreadUrlsToMarkAsRead = [];
 
     const hasSubforums = document.querySelector('.p-body-pageContent .node-list');
     const hasThreads = document.querySelector('.p-body-pageContent .structItemContainer-group.js-threadList');
@@ -77,24 +91,31 @@ async function main() {
     if (hasSubforums) {
         const subforumResult = await processSubforums();
         finalUrlsToOpen.push(...subforumResult.urlsToOpen);
-        finalUrlsToMarkAsRead.push(...subforumResult.urlsToMarkAsRead);
+        finalSubforumUrlsToMarkAsRead.push(...subforumResult.urlsToMarkAsRead);
     }
 
     if (hasThreads) {
         const threadResult = await processThreads();
         finalUrlsToOpen.push(...threadResult.urlsToOpen);
-        finalUrlsToMarkAsRead.push(...threadResult.urlsToMarkAsRead);
+        finalThreadUrlsToMarkAsRead.push(...threadResult.urlsToMarkAsRead);
     }
 
     // Remove duplicates
     finalUrlsToOpen = [...new Set(finalUrlsToOpen)];
-    finalUrlsToMarkAsRead = [...new Set(finalUrlsToMarkAsRead)];
+    finalSubforumUrlsToMarkAsRead = [...new Set(finalSubforumUrlsToMarkAsRead)];
+    finalThreadUrlsToMarkAsRead = [...new Set(finalThreadUrlsToMarkAsRead)];
 
-    if (finalUrlsToOpen.length > 0 || finalUrlsToMarkAsRead.length > 0) {
+    const hasItemsToProcess = finalUrlsToOpen.length > 0 || 
+                             finalSubforumUrlsToMarkAsRead.length > 0 || 
+                             finalThreadUrlsToMarkAsRead.length > 0;
+
+    if (hasItemsToProcess) {
         browser.runtime.sendMessage({
             action: 'processLinks',
             urlsToOpen: finalUrlsToOpen,
-            urlsToMarkAsRead: finalUrlsToMarkAsRead
+            subforumUrlsToMarkAsRead: finalSubforumUrlsToMarkAsRead,
+            threadUrlsToMarkAsRead: finalThreadUrlsToMarkAsRead,
+            csrfToken: getCsrfToken()
         });
     } else {
         browser.runtime.sendMessage({
@@ -105,4 +126,19 @@ async function main() {
     }
 }
 
-main();
+// Listen for messages from the popup script
+browser.runtime.onMessage.addListener((message, sender, sendResponse) => {
+    if (message.action === 'ping') {
+        sendResponse({ status: 'pong' });
+        return true;
+    }
+    if (message.action === 'scanPage') {
+        main().then(() => {
+            sendResponse({ status: 'started' });
+        }).catch(err => {
+            console.error('Scan failed:', err);
+            sendResponse({ status: 'error', error: err.message });
+        });
+        return true; // Keep channel open for async response
+    }
+});

@@ -36,12 +36,30 @@ document.addEventListener('DOMContentLoaded', () => {
 
         if (currentTab) {
             try {
-                await browser.scripting.executeScript({
-                    target: { tabId: currentTab.id },
-                    files: ['content.js']
-                });
+                // Check if content.js is already running on the page using a ping
+                let loaded = false;
+                try {
+                    const response = await browser.tabs.sendMessage(currentTab.id, { action: 'ping' });
+                    if (response && response.status === 'pong') {
+                        loaded = true;
+                    }
+                } catch (e) {
+                    // Message failed, script not injected yet
+                }
+
+                // If not loaded, inject it dynamically
+                if (!loaded) {
+                    console.log('Content script not loaded on this tab. Injecting dynamically...');
+                    await browser.scripting.executeScript({
+                        target: { tabId: currentTab.id },
+                        files: ['content.js']
+                    });
+                }
+
+                // Send the scanPage trigger
+                await browser.tabs.sendMessage(currentTab.id, { action: 'scanPage' });
             } catch (error) {
-                console.error('Failed to execute content script:', error);
+                console.error('Failed to execute scan action:', error);
                 setStatus('Error: ' + error.message, 'error');
                 openUnreadButton.disabled = false;
             }
@@ -52,7 +70,13 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     browser.runtime.onMessage.addListener((request, sender, sendResponse) => {
-        if (request.action === 'scanResults') {
+        if (request.action === 'scanProgress') {
+            if (request.stage === 'opening') {
+                setStatus(`Opening tabs (${request.current}/${request.total})...`, 'info');
+            } else if (request.stage === 'marking') {
+                setStatus(`Clearing unread (${request.current}/${request.total})...`, 'info');
+            }
+        } else if (request.action === 'scanResults') {
             if (request.error) {
                 setStatus(request.error, 'error');
             } else if (request.openedCount > 0) {

@@ -1,0 +1,9 @@
+# Build outputs
+*.xpi
+*.zip
+skyscrapercity_opener.xpi
+skyscrapercity_opener.zip
+
+# System & IDE files
+.DS_Store
+.antigravitycli/
