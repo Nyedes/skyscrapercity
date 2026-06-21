@@ -245,9 +245,9 @@ document.addEventListener('DOMContentLoaded', () => {
                     orderedSubforums.push(found);
                 }
             });
-            // For items not in the saved list but checked (or if no rule exists yet), default to checked in document order
+            // For items not in the saved list but checked (or if no rule exists yet), default to checked in reverse document order (bottom to top)
             if (!existingRule) {
-                orderedSubforums = [...items];
+                orderedSubforums = [...items].reverse();
             } else {
                 // If there is an existing rule, append any other items (unchecked by default)
                 items.forEach(item => {
@@ -405,9 +405,9 @@ document.addEventListener('DOMContentLoaded', () => {
                     orderedThreads.push(found);
                 }
             });
-            // For items not in the saved list but checked (or if no rule exists yet), default to checked in document order
+            // For items not in the saved list but checked (or if no rule exists yet), default to checked in reverse document order (bottom to top)
             if (!existingRule) {
-                orderedThreads = [...items];
+                orderedThreads = [...items].reverse();
             }
 
             const interfaceHtml = `

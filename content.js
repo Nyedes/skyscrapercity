@@ -52,6 +52,9 @@ async function processSubforums() {
         }
     });
 
+    // Reverse to open tabs from bottom to top
+    unreadLinks.reverse();
+
     const result = await browser.storage.sync.get('subforumRules');
     const rules = result.subforumRules || [];
     const currentNormalized = normalizeUrl(window.location.href);
@@ -124,6 +127,9 @@ async function processThreads() {
             unreadThreads.push({ url: titleLink.href, title: titleLink.innerText.trim() });
         }
     });
+
+    // Reverse to open tabs from bottom to top
+    unreadThreads.reverse();
 
     const result = await browser.storage.sync.get('threadRules');
     const rules = result.threadRules || [];
