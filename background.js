@@ -17,78 +17,89 @@ browser.runtime.onMessage.addListener((request, sender, sendResponse) => {
  */
 async function handleProcessLinks(request) {
     let openedCount = 0;
+    try {
+        // 1. Open requested URLs in new background tabs with a delay
+        if (request.urlsToOpen && request.urlsToOpen.length > 0) {
+            const total = request.urlsToOpen.length;
+            for (let i = 0; i < total; i++) {
+                const urlObj = request.urlsToOpen[i];
+                const url = typeof urlObj === 'string' ? urlObj : (urlObj && urlObj.url);
+                if (url) {
+                    browser.tabs.create({ url: url, active: false });
+                    openedCount++;
+                }
 
-    // 1. Open requested URLs in new background tabs with a delay
-    if (request.urlsToOpen && request.urlsToOpen.length > 0) {
-        const total = request.urlsToOpen.length;
-        for (let i = 0; i < total; i++) {
-            const url = request.urlsToOpen[i];
-            browser.tabs.create({ url: url, active: false });
-            openedCount++;
+                // Report progress back to the popup
+                browser.runtime.sendMessage({
+                    action: 'scanProgress',
+                    stage: 'opening',
+                    current: i + 1,
+                    total: total
+                }).catch(() => {
+                    // Ignore error if popup is closed
+                });
 
-            // Report progress back to the popup
-            browser.runtime.sendMessage({
-                action: 'scanProgress',
-                stage: 'opening',
-                current: i + 1,
-                total: total
-            }).catch(() => {
-                // Ignore error if popup is closed
-            });
-
-            // 500ms delay between opening each tab
-            if (i < total - 1) {
-                await delay(500);
+                // 500ms delay between opening each tab
+                if (i < total - 1) {
+                    await delay(500);
+                }
             }
         }
+
+        // Gather all marking targets
+        const subforums = request.subforumUrlsToMarkAsRead || [];
+        const threads = request.threadUrlsToMarkAsRead || [];
+        const totalToMark = subforums.length + threads.length;
+
+        // 2. Mark as read sequentially with a delay
+        if (totalToMark > 0) {
+            let processedCount = 0;
+
+            // Process subforums first (via POST)
+            for (let i = 0; i < subforums.length; i++) {
+                await markSubforumAsRead(subforums[i], request.csrfToken);
+                processedCount++;
+
+                browser.runtime.sendMessage({
+                    action: 'scanProgress',
+                    stage: 'marking',
+                    current: processedCount,
+                    total: totalToMark
+                }).catch(() => {});
+
+                if (processedCount < totalToMark) {
+                    await delay(400); // 400ms delay between actions
+                }
+            }
+
+            // Process threads (via GET)
+            for (let i = 0; i < threads.length; i++) {
+                await markThreadAsRead(threads[i]);
+                processedCount++;
+
+                browser.runtime.sendMessage({
+                    action: 'scanProgress',
+                    stage: 'marking',
+                    current: processedCount,
+                    total: totalToMark
+                }).catch(() => {});
+
+                if (processedCount < totalToMark) {
+                    await delay(400); // 400ms delay between actions
+                }
+            }
+        }
+
+        // Send final scan results to the popup
+        browser.runtime.sendMessage({ action: 'scanResults', openedCount: openedCount }).catch(() => {});
+    } catch (error) {
+        console.error('Error in handleProcessLinks:', error);
+        browser.runtime.sendMessage({
+            action: 'scanResults',
+            openedCount: openedCount,
+            error: 'Background error: ' + error.message
+        }).catch(() => {});
     }
-
-    // Gather all marking targets
-    const subforums = request.subforumUrlsToMarkAsRead || [];
-    const threads = request.threadUrlsToMarkAsRead || [];
-    const totalToMark = subforums.length + threads.length;
-
-    // 2. Mark as read sequentially with a delay
-    if (totalToMark > 0) {
-        let processedCount = 0;
-
-        // Process subforums first (via POST)
-        for (let i = 0; i < subforums.length; i++) {
-            await markSubforumAsRead(subforums[i], request.csrfToken);
-            processedCount++;
-
-            browser.runtime.sendMessage({
-                action: 'scanProgress',
-                stage: 'marking',
-                current: processedCount,
-                total: totalToMark
-            }).catch(() => {});
-
-            if (processedCount < totalToMark) {
-                await delay(400); // 400ms delay between actions
-            }
-        }
-
-        // Process threads (via GET)
-        for (let i = 0; i < threads.length; i++) {
-            await markThreadAsRead(threads[i]);
-            processedCount++;
-
-            browser.runtime.sendMessage({
-                action: 'scanProgress',
-                stage: 'marking',
-                current: processedCount,
-                total: totalToMark
-            }).catch(() => {});
-
-            if (processedCount < totalToMark) {
-                await delay(400); // 400ms delay between actions
-            }
-        }
-    }
-
-    // Send final scan results to the popup
-    browser.runtime.sendMessage({ action: 'scanResults', openedCount: openedCount }).catch(() => {});
 }
 
 /**

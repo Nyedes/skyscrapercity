@@ -1,18 +1,51 @@
 // content.js
 console.log('Content script loaded');
 
+// Helper to normalize URLs for reliable comparisons (stripping trailing slashes, query parameters, hashes, etc.)
+function normalizeUrl(url) {
+    if (!url) return '';
+    try {
+        const u = new URL(url);
+        let path = u.pathname;
+        if (path.endsWith('/')) {
+            path = path.slice(0, -1);
+        }
+        return (u.origin + path).toLowerCase();
+    } catch (e) {
+        let clean = url.trim().toLowerCase();
+        if (clean.endsWith('/')) {
+            clean = clean.slice(0, -1);
+        }
+        return clean;
+    }
+}
+
 // --- Subforum Page Logic ---
 async function processSubforums() {
     console.log("Scanning for subforums...");
     const unreadLinks = [];
+    
+    // Map of sub-subforum (child) URL to parent subforum URL in the DOM
+    const childToParentMap = new Map();
+    
     document.querySelectorAll('.node.node--forum').forEach(item => {
-        if (item.querySelector('.node-icon .node--unread.forum')) {
-            const link = item.querySelector('.node-main .node-title a');
-            if (link && link.href) {
-                unreadLinks.push({ url: link.href, title: link.innerText.trim() });
+        const parentLink = item.querySelector('.node-main .node-title a');
+        if (parentLink && parentLink.href) {
+            const parentUrl = parentLink.href;
+            
+            // Build the parent-child relationship map for all subnodes
+            item.querySelectorAll('.subNodeLink').forEach(subLink => {
+                if (subLink.href) {
+                    childToParentMap.set(subLink.href, parentUrl);
+                }
+            });
+            
+            if (item.querySelector('.node-icon .node--unread.forum')) {
+                unreadLinks.push({ url: parentUrl, title: parentLink.innerText.trim() });
             }
         }
     });
+    
     document.querySelectorAll('.subNodeLink--unread').forEach(link => {
         if (link.href) {
             unreadLinks.push({ url: link.href, title: link.innerText.trim() });
@@ -21,20 +54,56 @@ async function processSubforums() {
 
     const result = await browser.storage.sync.get('subforumRules');
     const rules = result.subforumRules || [];
-    const matchingRule = rules.find(rule => window.location.href.startsWith(rule.pageUrl));
+    const currentNormalized = normalizeUrl(window.location.href);
+    const matchingRule = rules.find(rule => currentNormalized.startsWith(normalizeUrl(rule.pageUrl)));
 
     if (matchingRule) {
         const customUrls = matchingRule.subforumUrls.map(s => s.trim()).filter(Boolean);
-        const matched = unreadLinks.filter(item => customUrls.some(customUrl => item.url.includes(customUrl)));
+        const normalizedCustom = customUrls.map(normalizeUrl);
+        
+        const matched = unreadLinks.filter(item => {
+            const normItem = normalizeUrl(item.url);
+            return normalizedCustom.some(normCustom => normItem.includes(normCustom) || normCustom.includes(normItem));
+        });
         
         // Sort matched to follow the exact order in customUrls
         matched.sort((a, b) => {
-            const indexA = customUrls.findIndex(url => a.url.includes(url));
-            const indexB = customUrls.findIndex(url => b.url.includes(url));
+            const normA = normalizeUrl(a.url);
+            const normB = normalizeUrl(b.url);
+            const indexA = normalizedCustom.findIndex(url => normA.includes(url) || url.includes(normA));
+            const indexB = normalizedCustom.findIndex(url => normB.includes(url) || url.includes(normB));
             return indexA - indexB;
         });
 
-        const urlsToMarkAsRead = unreadLinks.map(item => item.url).filter(url => !matched.some(o => o.url === url));
+        const openedNormalized = new Set(matched.map(item => normalizeUrl(item.url)));
+        
+        const urlsToMarkAsRead = unreadLinks
+            .map(item => item.url)
+            .filter(url => {
+                const normUrl = normalizeUrl(url);
+                
+                // 1. If this URL is directly being opened, do not mark it read
+                if (openedNormalized.has(normUrl)) {
+                    return false;
+                }
+                
+                // 2. If this URL is a child of a parent subforum that is being opened, do not mark it read
+                const parentUrl = childToParentMap.get(url);
+                if (parentUrl && openedNormalized.has(normalizeUrl(parentUrl))) {
+                    return false;
+                }
+                
+                // 3. If this URL is a parent and has any child that is being opened, do not mark it read
+                const hasOpenedChild = Array.from(childToParentMap.entries()).some(([childUrl, parentUrl]) => {
+                    return normalizeUrl(parentUrl) === normUrl && openedNormalized.has(normalizeUrl(childUrl));
+                });
+                if (hasOpenedChild) {
+                    return false;
+                }
+                
+                return true;
+            });
+            
         return { urlsToOpen: matched, urlsToMarkAsRead };
     } else {
         return { urlsToOpen: unreadLinks, urlsToMarkAsRead: [] };
@@ -58,20 +127,33 @@ async function processThreads() {
 
     const result = await browser.storage.sync.get('threadRules');
     const rules = result.threadRules || [];
-    const matchingRule = rules.find(rule => window.location.href.startsWith(rule.pageUrl));
+    const currentNormalized = normalizeUrl(window.location.href);
+    const matchingRule = rules.find(rule => currentNormalized.startsWith(normalizeUrl(rule.pageUrl)));
 
     if (matchingRule) {
         const customUrls = matchingRule.threadUrls.map(s => s.trim()).filter(Boolean);
-        const matched = unreadThreads.filter(item => customUrls.some(customUrl => item.url.includes(customUrl)));
+        const normalizedCustom = customUrls.map(normalizeUrl);
+        
+        const matched = unreadThreads.filter(item => {
+            const normItem = normalizeUrl(item.url);
+            return normalizedCustom.some(normCustom => normItem.includes(normCustom) || normCustom.includes(normItem));
+        });
         
         // Sort matched to follow the exact order in customUrls
         matched.sort((a, b) => {
-            const indexA = customUrls.findIndex(url => a.url.includes(url));
-            const indexB = customUrls.findIndex(url => b.url.includes(url));
+            const normA = normalizeUrl(a.url);
+            const normB = normalizeUrl(b.url);
+            const indexA = normalizedCustom.findIndex(url => normA.includes(url) || url.includes(normA));
+            const indexB = normalizedCustom.findIndex(url => normB.includes(url) || url.includes(normB));
             return indexA - indexB;
         });
 
-        const urlsToMarkAsRead = unreadThreads.map(item => item.url).filter(url => !matched.some(o => o.url === url));
+        const openedNormalized = new Set(matched.map(item => normalizeUrl(item.url)));
+        
+        const urlsToMarkAsRead = unreadThreads
+            .map(item => item.url)
+            .filter(url => !openedNormalized.has(normalizeUrl(url)));
+            
         return { urlsToOpen: matched, urlsToMarkAsRead };
     } else {
         return { urlsToOpen: unreadThreads, urlsToMarkAsRead: [] };
@@ -126,7 +208,7 @@ async function main() {
     if (hasItemsToProcess) {
         browser.runtime.sendMessage({
             action: 'processLinks',
-            urlsToOpen: finalUrlsToOpen,
+            urlsToOpen: finalUrlsToOpen.map(item => item.url),
             subforumUrlsToMarkAsRead: finalSubforumUrlsToMarkAsRead,
             threadUrlsToMarkAsRead: finalThreadUrlsToMarkAsRead,
             csrfToken: getCsrfToken()

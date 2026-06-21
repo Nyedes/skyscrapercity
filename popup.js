@@ -57,7 +57,11 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
 
                 // Send the scanPage trigger
-                await browser.tabs.sendMessage(currentTab.id, { action: 'scanPage' });
+                const response = await browser.tabs.sendMessage(currentTab.id, { action: 'scanPage' });
+                if (response && response.status === 'error') {
+                    setStatus('Error: ' + response.error, 'error');
+                    openUnreadButton.disabled = false;
+                }
             } catch (error) {
                 console.error('Failed to execute scan action:', error);
                 setStatus('Error: ' + error.message, 'error');

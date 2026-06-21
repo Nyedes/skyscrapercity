@@ -1,4 +1,24 @@
 // options.js
+
+// Helper to normalize URLs for reliable comparisons
+function normalizeUrl(url) {
+    if (!url) return '';
+    try {
+        const u = new URL(url);
+        let path = u.pathname;
+        if (path.endsWith('/')) {
+            path = path.slice(0, -1);
+        }
+        return (u.origin + path).toLowerCase();
+    } catch (e) {
+        let clean = url.trim().toLowerCase();
+        if (clean.endsWith('/')) {
+            clean = clean.slice(0, -1);
+        }
+        return clean;
+    }
+}
+
 document.addEventListener('DOMContentLoaded', () => {
     const statusDiv = document.getElementById('status');
 
@@ -58,7 +78,7 @@ document.addEventListener('DOMContentLoaded', () => {
             return;
         }
 
-        const existingRuleIndex = subforumRules.findIndex(rule => rule.pageUrl === pageUrl);
+        const existingRuleIndex = subforumRules.findIndex(rule => normalizeUrl(rule.pageUrl) === normalizeUrl(pageUrl));
         if (existingRuleIndex > -1) {
             subforumRules[existingRuleIndex].subforumUrls = subforumUrls;
         } else {
@@ -110,7 +130,7 @@ document.addEventListener('DOMContentLoaded', () => {
             return;
         }
 
-        const existingRuleIndex = threadRules.findIndex(rule => rule.pageUrl === pageUrl);
+        const existingRuleIndex = threadRules.findIndex(rule => normalizeUrl(rule.pageUrl) === normalizeUrl(pageUrl));
         if (existingRuleIndex > -1) {
             threadRules[existingRuleIndex].threadUrls = threadUrls;
         } else {
@@ -147,8 +167,8 @@ document.addEventListener('DOMContentLoaded', () => {
             const decodedUrl = decodeURIComponent(pageUrl);
             
             // Heuristic fallback before scraping
-            const existingThreadRule = threadRules.find(rule => rule.pageUrl === decodedUrl);
-            const existingSubforumRule = subforumRules.find(rule => rule.pageUrl === decodedUrl);
+            const existingThreadRule = threadRules.find(rule => normalizeUrl(rule.pageUrl) === normalizeUrl(decodedUrl));
+            const existingSubforumRule = subforumRules.find(rule => normalizeUrl(rule.pageUrl) === normalizeUrl(decodedUrl));
             if (existingThreadRule) {
                 threadPageUrlInput.value = decodedUrl;
                 customThreadsTextarea.value = existingThreadRule.threadUrls.join('\n');
@@ -162,7 +182,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
             // Attempt to query the tab and scrape its items for the Interactive Builder
             browser.tabs.query({}).then((tabs) => {
-                const tab = tabs.find(t => t.url && t.url.startsWith(decodedUrl.split('#')[0]));
+                const tab = tabs.find(t => t.url && normalizeUrl(t.url).startsWith(normalizeUrl(decodedUrl.split('#')[0])));
                 if (tab) {
                     browser.scripting.executeScript({
                         target: { tabId: tab.id },
@@ -173,7 +193,7 @@ document.addEventListener('DOMContentLoaded', () => {
                             if (res.success) {
                                 if (res.type === 'threads') {
                                     threadPageUrlInput.value = decodedUrl;
-                                    const exRule = threadRules.find(rule => rule.pageUrl === decodedUrl);
+                                    const exRule = threadRules.find(rule => normalizeUrl(rule.pageUrl) === normalizeUrl(decodedUrl));
                                     if (exRule) {
                                         customThreadsTextarea.value = exRule.threadUrls.join('\n');
                                     } else {
@@ -181,7 +201,7 @@ document.addEventListener('DOMContentLoaded', () => {
                                     }
                                 } else {
                                     subforumPageUrlInput.value = decodedUrl;
-                                    const exRule = subforumRules.find(rule => rule.pageUrl === decodedUrl);
+                                    const exRule = subforumRules.find(rule => normalizeUrl(rule.pageUrl) === normalizeUrl(decodedUrl));
                                     if (exRule) {
                                         customSubforumsTextarea.value = exRule.subforumUrls.join('\n');
                                     } else {
@@ -214,13 +234,13 @@ document.addEventListener('DOMContentLoaded', () => {
         builderContent.innerHTML = '';
 
         if (type === 'subforums') {
-            const existingRule = subforumRules.find(r => r.pageUrl === pageUrl);
+            const existingRule = subforumRules.find(r => normalizeUrl(r.pageUrl) === normalizeUrl(pageUrl));
             const savedUrls = existingRule ? existingRule.subforumUrls : [];
 
             // Initialize orderedSubforums in the saved order
             let orderedSubforums = [];
             savedUrls.forEach(url => {
-                const found = items.find(item => item.url === url);
+                const found = items.find(item => normalizeUrl(item.url) === normalizeUrl(url));
                 if (found) {
                     orderedSubforums.push(found);
                 }
@@ -358,7 +378,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     return;
                 }
 
-                const existingIndex = subforumRules.findIndex(r => r.pageUrl === pageUrl);
+                const existingIndex = subforumRules.findIndex(r => normalizeUrl(r.pageUrl) === normalizeUrl(pageUrl));
                 if (existingIndex > -1) {
                     subforumRules[existingIndex].subforumUrls = checkedUrls;
                 } else {
@@ -374,13 +394,13 @@ document.addEventListener('DOMContentLoaded', () => {
             oldSaveBtn.addEventListener('click', newSaveHandler);
 
         } else if (type === 'threads') {
-            const existingRule = threadRules.find(r => r.pageUrl === pageUrl);
+            const existingRule = threadRules.find(r => normalizeUrl(r.pageUrl) === normalizeUrl(pageUrl));
             const savedUrls = existingRule ? existingRule.threadUrls : [];
 
             // Initialize orderedThreads in the saved order
             let orderedThreads = [];
             savedUrls.forEach(url => {
-                const found = items.find(item => item.url === url);
+                const found = items.find(item => normalizeUrl(item.url) === normalizeUrl(url));
                 if (found) {
                     orderedThreads.push(found);
                 }
@@ -511,7 +531,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     return;
                 }
 
-                const existingIndex = threadRules.findIndex(r => r.pageUrl === pageUrl);
+                const existingIndex = threadRules.findIndex(r => normalizeUrl(r.pageUrl) === normalizeUrl(pageUrl));
                 if (existingIndex > -1) {
                     threadRules[existingIndex].threadUrls = checkedUrls;
                 } else {
